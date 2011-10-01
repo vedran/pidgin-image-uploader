@@ -1,26 +1,3 @@
-/*
- * Image Uploader Plugin
- *
- * Copyright (C) 2004, Gary Kramlich <grim@guifications.org>,
- *               2007, John Bailey <rekkanoryo@cpw.pidgin.im>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02111-1301, USA.
- *
- */
-
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
@@ -49,44 +26,56 @@
 #include <pidgin.h>
 #include <gtkconv.h>
 
-/* we're adding this here and assigning it in plugin_load because we need
- * a valid plugin handle for our call to purple_notify_message() in the
- * plugin_action_test_cb() callback function */
 PurplePlugin *image_upload_plugin = NULL;
 
 static void
-conv_dnd_recv(PidginConversation *gtkconv, gpointer data) {
-	purple_notify_message (image_upload_plugin, PURPLE_NOTIFY_MSG_INFO,
-			"Drag and drop", "drag and drop detected", NULL, NULL,
-			NULL);
+conv_dnd_recv(GtkWidget *widget, GdkDragContext *dc, guint x, guint y,
+              GtkSelectionData *sd, guint info, guint t,
+			                PidginConversation *gtkconv) {
 
+	GdkPixbuf *pb;
+	PurpleConversation *conv = 	gtkconv->active_conv;
+	purple_conv_im_send (PURPLE_CONV_IM(conv), (const char*)(sd->data));
+
+	
+	/*for ( ; files; files = g_list_delete_link(files, files)) {
+		g_free(filename);
+		g_free(basename);
+
+		filename = files->data;
+		basename = g_path_get_basename(filename);
+
+		pb = gdk_pixbuf_new_from_file(filename, NULL);
+		if (pb) {
+			//purple_notify_message (image_upload_plugin, PURPLE_NOTIFY_MSG_INFO,
+			//		"Drag and drop", filename, NULL, NULL,
+			//		NULL);
+
+		}
+	}*/
 }
 
-static void
-conversation_switched_cb(PurpleConversation *conv, void *data)
+
+	static void
+conversation_displayed_cb(PidginConversation *gtkconv, void *data)
 {
-	PidginConversation *gtkconv = PIDGIN_CONVERSATION(conv);
+	//	PidginConversation *gtkconv = PIDGIN_CONVERSATION(conv);
 	g_signal_connect(G_OBJECT(gtkconv->imhtml), "drag_data_received",
-                     G_CALLBACK(conv_dnd_recv), gtkconv);
+			G_CALLBACK(conv_dnd_recv), gtkconv);
 
 	g_signal_connect(G_OBJECT(gtkconv->entry), "drag_data_received",
-                     G_CALLBACK(conv_dnd_recv), gtkconv);
-
-	purple_notify_message (image_upload_plugin, PURPLE_NOTIFY_MSG_INFO,
-		"Drag and Drop", "show conversation detected", NULL, NULL,
-		NULL);
-
+			G_CALLBACK(conv_dnd_recv), gtkconv);
 }
 
 
-static gboolean
+	static gboolean
 plugin_load (PurplePlugin * plugin)
 {
 	void *conv_handle = pidgin_conversations_get_handle();
 	image_upload_plugin = plugin; 
 
-	purple_signal_connect(conv_handle, "conversation-switched",
-                        plugin, PURPLE_CALLBACK(conversation_switched_cb), NULL);
+	purple_signal_connect(conv_handle, "conversation-displayed",
+			plugin, PURPLE_CALLBACK(conversation_displayed_cb), NULL);
 
 	return TRUE;
 }
