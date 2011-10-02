@@ -20,39 +20,75 @@
 # endif
 #endif
 
+#define MAX_LENGTH 256
+
+
 #include <notify.h>
 #include <plugin.h>
 #include <version.h>
 #include <pidgin.h>
 #include <gtkconv.h>
+#include <string.h>
+#include <regex.h>
 
 PurplePlugin *image_upload_plugin = NULL;
 
+//write a function to fix %20 space characters in the filename of an image
+
 static void
 conv_dnd_recv(GtkWidget *widget, GdkDragContext *dc, guint x, guint y,
-              GtkSelectionData *sd, guint info, guint t,
-			                PidginConversation *gtkconv) {
+		GtkSelectionData *sd, guint info, guint t, PidginConversation *gtkconv) {
 
 	GdkPixbuf *pb;
-	PurpleConversation *conv = 	gtkconv->active_conv;
-	purple_conv_im_send (PURPLE_CONV_IM(conv), (const char*)(sd->data));
-
+ 	GList *files = purple_uri_list_extract_filenames((const gchar *)sd->data);
 	
-	/*for ( ; files; files = g_list_delete_link(files, files)) {
-		g_free(filename);
-		g_free(basename);
+	pb = gdk_pixbuf_new_from_file(files->data, NULL);
 
-		filename = files->data;
-		basename = g_path_get_basename(filename);
+	if(pb) {
 
-		pb = gdk_pixbuf_new_from_file(filename, NULL);
-		if (pb) {
-			//purple_notify_message (image_upload_plugin, PURPLE_NOTIFY_MSG_INFO,
-			//		"Drag and drop", filename, NULL, NULL,
-			//		NULL);
+		FILE *fp;
+		char curlReturn[MAX_LENGTH];
+		char *apikey = "4c24ac856eff938b2af0ff7e4b6cd5e9";
+		PurpleConversation *conv = 	gtkconv->active_conv;
+
+		char curlCommand[MAX_LENGTH];
+		int prefixLength = strlen("file://");
+		int filenameLength = strlen((const char *)(sd->data));
+
+		sd->data[filenameLength-1] = '\0';
+
+		sprintf(curlCommand, "curl -F \"image=@%s\" -F \"key=%s\" http://api.imgur.com/2/upload.xml", &(sd->data[prefixLength]), apikey);
+		fp = popen(curlCommand, "r");
+
+		if(fp != NULL) {
+			while(fgets(curlReturn, MAX_LENGTH, fp) != NULL) {
+				char *linkStart = "<original>";
+				char *linkEnd = "</original>";
+				char *start = strstr(curlReturn, linkStart);
+				char *end = strstr(curlReturn, linkEnd);
+				char linkFinal[MAX_LENGTH];
+				int i = 0;
+
+				if(start == NULL)
+					continue;
+
+				start = &(start[strlen(linkStart)]);
+
+				while(start) {
+					if(start == end)
+						break;
+
+					linkFinal[i++] = *(start++);
+				}
+
+				linkFinal[i] = '\0';
+
+				purple_conv_im_send (PURPLE_CONV_IM(conv), (const char *)(linkFinal));
+			}
 
 		}
-	}*/
+
+	}
 }
 
 
